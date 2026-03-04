@@ -32,7 +32,7 @@ For blocks containing only text content.
 -   **Example:**
 
 ```html
-<!-- wp:greenshift-blocks/element {"id":"gsbp-9de47c2","textContent":"My text","localId":"gsbp-9de47c2"} -->
+<!-- wp:greenshift-blocks/element {"textContent":"My text"} -->
 <div>My text</div>
 <!-- /wp:greenshift-blocks/element -->
 ```
@@ -45,8 +45,8 @@ For blocks containing other blocks as children.
 -   **Example:**
 
 ```html
-<!-- wp:greenshift-blocks/element {"id":"gsbp-eaf940e","tag":"a","type":"inner","localId":"gsbp-eaf940e"} -->
-<a><!-- wp:greenshift-blocks/element {"id":"gsbp-771f6d2","textContent":"Inner block text","tag":"span","localId":"gsbp-771f6d2"} -->
+<!-- wp:greenshift-blocks/element {"tag":"a","type":"inner"} -->
+<a><!-- wp:greenshift-blocks/element {"textContent":"Inner block text","tag":"span"} -->
 <span>Inner block text</span>
 <!-- /wp:greenshift-blocks/element --></a>
 <!-- /wp:greenshift-blocks/element -->
@@ -59,8 +59,8 @@ For blocks with no inner content, typically used as visual spacers or decorative
 -   **Example:**
 
 ```html
-<!-- wp:greenshift-blocks/element {"id":"gsbp-e4f5g6h","type":"no","localId":"gsbp-e4f5g6h","styleAttributes":{"height":["1px"],"backgroundColor":["#0000002b"],"width":["100px"]}} -->
-<div class="gsbp-e4f5g6h"></div>
+<!-- wp:greenshift-blocks/element {"type":"no"} -->
+<div></div>
 <!-- /wp:greenshift-blocks/element -->
 ```
 

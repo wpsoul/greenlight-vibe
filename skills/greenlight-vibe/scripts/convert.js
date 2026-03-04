@@ -117,6 +117,7 @@ function parseHTML(html) {
       if (html[pos] === '<') {
         // Check for closing tag without consuming
         if (html[pos + 1] === '/') break;
+        const tagStartPos = pos;
         const tag = readTag();
         if (!tag || tag.type === 'comment' || tag.type === 'doctype') continue;
         if (tag.type === 'close') break;
@@ -129,20 +130,11 @@ function parseHTML(html) {
             outerHTML: ''
           };
           if (tag.tagName === 'svg') {
-            // For SVG, capture everything until </svg> as raw content
-            const svgStart = html.lastIndexOf('<svg', pos - 1) !== -1 ?
-              html.lastIndexOf('<', pos) : pos;
-            const openTagEnd = pos;
             const svgCloseIdx = html.indexOf('</svg>', pos);
             if (svgCloseIdx !== -1) {
-              const innerSvg = html.slice(openTagEnd, svgCloseIdx);
+              const innerSvg = html.slice(pos, svgCloseIdx);
               pos = svgCloseIdx + 6;
-              // Rebuild outerHTML
-              let attrStr = '';
-              for (const [k, v] of Object.entries(tag.attributes)) {
-                attrStr += v ? ` ${k}="${v}"` : ` ${k}`;
-              }
-              node.outerHTML = `<svg${attrStr}>${innerSvg}</svg>`;
+              node.outerHTML = html.slice(tagStartPos, pos);
               node.rawInner = innerSvg;
             }
             nodes.push(node);
@@ -381,15 +373,6 @@ function parseCss(cssText) {
 
 function escRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
-// ─── ID Generator ────────────────────────────────────────────────────────────
-
-let idCounter = 0;
-function generateId() {
-  idCounter++;
-  const hex = (Date.now() + idCounter).toString(16).slice(-7);
-  return `gsbp-${hex}`;
-}
-
 // ─── HTML Node to Block Conversion ──────────────────────────────────────────
 
 const INNER_TAGS = new Set(['div','section','article','header','footer','nav','aside','main','ul','ol','li','table','thead','tbody','tfoot','tr','form','fieldset','figure','figcaption','details','summary','dialog','menu']);
@@ -424,9 +407,8 @@ function convertNodeToBlock(node) {
   if (node.type === 'text') {
     const text = node.content.trim();
     if (!text) return null;
-    const id = generateId();
-    const params = { id, textContent: text, tag: 'span', localId: id };
-    const json = JSON.stringify(params);
+    const params = { textContent: text, tag: 'span' };
+    const json = wpJsonEncode(params);
     return `<!-- wp:greenshift-blocks/element ${json} -->\n<span>${escHtml(text)}</span>\n<!-- /wp:greenshift-blocks/element -->`;
   }
 
@@ -437,24 +419,21 @@ function convertNodeToBlock(node) {
 
   // Handle br
   if (tag === 'br') {
-    const id = generateId();
-    const params = { id, tag: 'span', type: 'html', textContent: '<br />', localId: id };
-    return `<!-- wp:greenshift-blocks/element ${JSON.stringify(params)} -->\n<span><br /></span>\n<!-- /wp:greenshift-blocks/element -->`;
+    const params = { tag: 'span', type: 'html', textContent: '<br />' };
+    return `<!-- wp:greenshift-blocks/element ${wpJsonEncode(params)} -->\n<span><br /></span>\n<!-- /wp:greenshift-blocks/element -->`;
   }
 
   // Handle hr
   if (tag === 'hr') {
-    const id = generateId();
-    const params = { id, tag: 'span', type: 'html', textContent: '<hr />', localId: id };
-    return `<!-- wp:greenshift-blocks/element ${JSON.stringify(params)} -->\n<span><hr /></span>\n<!-- /wp:greenshift-blocks/element -->`;
+    const params = { tag: 'span', type: 'html', textContent: '<hr />' };
+    return `<!-- wp:greenshift-blocks/element ${wpJsonEncode(params)} -->\n<span><hr /></span>\n<!-- /wp:greenshift-blocks/element -->`;
   }
 
   // Handle SVG
   if (tag === 'svg') {
-    const id = generateId();
     const svgHTML = node.outerHTML || '<svg></svg>';
     const params = {
-      id, tag: 'svg', localId: id,
+      tag: 'svg',
       icon: { icon: { svg: svgHTML, image: '' }, fill: 'currentColor', fillhover: 'currentColor', type: 'svg' }
     };
     const cls = node.attributes['class'];
@@ -468,15 +447,23 @@ function convertNodeToBlock(node) {
       if (w) params.styleAttributes.width = [w.includes('px') ? w : `${w}px`];
       if (h) params.styleAttributes.height = [h.includes('px') ? h : `${h}px`];
     }
-    const htmlCls = cls ? ` class="${cls}"` : '';
-    // Strip xmlns for the html output
-    const cleanSvg = svgHTML.replace(/\s*xmlns="[^"]*"/g, '');
-    return `<!-- wp:greenshift-blocks/element ${JSON.stringify(params)} -->\n${cleanSvg}\n<!-- /wp:greenshift-blocks/element -->`;
+    const SVG_STRIP_ATTRS = ['fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'class'];
+    let cleanSvg = svgHTML;
+    for (const attr of SVG_STRIP_ATTRS) {
+      cleanSvg = cleanSvg.replace(new RegExp(`\\s+${attr}="[^"]*"`, 'g'), '');
+    }
+    params.icon.icon.svg = cleanSvg;
+    cleanSvg = cleanSvg.replace(/\s+style="[^"]*"/g, '');
+    const xmlns = node.attributes['xmlns'];
+    if (xmlns) {
+      cleanSvg = cleanSvg.replace(/^(<svg)\s+xmlns="[^"]*"/, '$1');
+      cleanSvg = cleanSvg.replace(/<(?!\/?svg\b)([a-zA-Z][a-zA-Z0-9]*)/g, `<$1 xmlns="${xmlns}"`);
+    }
+    return `<!-- wp:greenshift-blocks/element ${wpJsonEncode(params)} -->\n${cleanSvg}\n<!-- /wp:greenshift-blocks/element -->`;
   }
 
   const type = getTypeFromTag(tag);
-  const id = generateId();
-  const params = { id, tag, localId: id };
+  const params = { tag };
   let effectiveType = type;
 
   // className
@@ -616,7 +603,7 @@ function convertNodeToBlock(node) {
   }
 
   // Build HTML output
-  const json = JSON.stringify(params);
+  const json = wpJsonEncode(params);
   let htmlAttrs = '';
   if (cls) htmlAttrs += ` class="${cls}"`;
   if (idAttr) htmlAttrs += ` id="${idAttr}"`;
@@ -663,12 +650,9 @@ function convertNodeToBlock(node) {
     if (params.rowSpan) htmlAttrs += ` rowspan="${params.rowSpan}"`;
   }
 
-  // Add data-* and on* attributes to HTML
   if (dynAttrs.length > 0) {
     for (const da of dynAttrs) {
-      if (da.name !== 'style') {
-        htmlAttrs += ` ${da.name}="${escHtml(da.value)}"`;
-      }
+      htmlAttrs += ` ${da.name}="${escHtml(da.value)}"`;
     }
   }
 
@@ -688,17 +672,22 @@ function convertNodeToBlock(node) {
 }
 
 function escHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.replace(/&(?!#?\w+;)/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function wpJsonEncode(obj) {
+  return JSON.stringify(obj)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026');
 }
 
 // ─── CSS to Local Classes Block Builder ─────────────────────────────────────
 
 function buildStyleManagerBlock(parsedCss, customJs, customJsEnabled) {
-  const id = generateId();
-  const params = { id, tag: 'div', type: 'no', localId: id };
+  const params = { tag: 'div', type: 'no', isVariation: 'stylemanager' };
 
   const dynamicGClasses = [];
-  const classNames = [];
 
   parsedCss.allClasses.forEach(className => {
     const classData = parsedCss.classes[className];
@@ -713,17 +702,14 @@ function buildStyleManagerBlock(parsedCss, customJs, customJsEnabled) {
       localed: false,
       css: (classData.baseCSS || '') + (classData.mediaCSS || ''),
       attributes: classAttributes,
-      originalID: id,
       originalBlock: 'greenshift-blocks/element',
       selectors: classData.selectors || []
     };
     dynamicGClasses.push(localClass);
-    classNames.push(className);
   });
 
   if (dynamicGClasses.length > 0) {
     params.dynamicGClasses = dynamicGClasses;
-    params.className = classNames.join(' ');
   }
 
   if (parsedCss.nonClassCss) {
@@ -735,9 +721,12 @@ function buildStyleManagerBlock(parsedCss, customJs, customJsEnabled) {
     params.customJsEnabled = true;
   }
 
-  const json = JSON.stringify(params);
-  const cls = params.className ? ` class="${params.className}"` : '';
-  return `<!-- wp:greenshift-blocks/element ${json} -->\n<div${cls}></div>\n<!-- /wp:greenshift-blocks/element -->`;
+  const allClassNames = Array.from(parsedCss.allClasses).join(' ');
+  const classAttr = allClassNames ? ` class="${allClassNames}"` : '';
+  if (allClassNames) params.className = allClassNames;
+
+  const json = wpJsonEncode(params);
+  return `<!-- wp:greenshift-blocks/element ${json} -->\n<div${classAttr}></div>\n<!-- /wp:greenshift-blocks/element -->`;
 }
 
 // ─── Main Pipeline ──────────────────────────────────────────────────────────

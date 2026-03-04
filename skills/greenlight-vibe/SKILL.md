@@ -77,6 +77,8 @@ cat input.html | node scripts/convert.js          # pipe from stdin
 
 To validate code after conversion, read `instructions/core-structure.md` and `instructions/attributes.md`  and make sure that code is relevant to requirements for Greenshift block syntax. If code has scripts, read `instructions/scripts.md`
 
+***Important*** If you use returned code to add it to page programatically, for example, via MCP or REST API, make sure to add attribute "CSSRender": "1" to blocks which have styleAttributes attribute or dynamicGClasses attribute
+
 ### Step 4: Fit to inner variable system
 
 Check if we have some values in styles that matches or close to one of our existed variables. If yes, replace value with variable and fallback
