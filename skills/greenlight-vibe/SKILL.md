@@ -1,0 +1,101 @@
+---
+name: greenlight-vibe
+description: Generate design for WordPress Gutenberg blocks using Greenshift/GreenLight plugin or convert any data to wordpress blocks. Use when user asks to create design with Greenshift or Greenlight blocks for wordpress site, convert anything to wordpress blocks or build charts in content. Triggers on keywords: wordpress, gutenberg, greenshift, greenlight, convert to wordpress, chart.
+---
+
+# Greenshift/Greenlight Block Generator and Data Convertor to WordPress blocks
+
+## Purpose
+
+Create production-ready WordPress Gutenberg blocks using Greenshift/GreenLight Element block system. All output is HTML with JSON parameters in block comments - ready to paste directly into WordPress Gutenberg code editor or send code via mcp, rest api to site.
+
+## Workflow to build design and convert it to blocks
+
+### Step 1: Create Clean HTML, CSS, JS first
+
+Always build html first and use there best standards. But keep important rules
+
+1. Make vanilla HTML + JS + CSS
+2. Do not use React or Typescript. 
+3. Put everything in a single HTML. 
+4. Do not use Tailwind or any other CSS frameworks. 
+5. Use unique class and id names with prefix, minimum 4 letter for prefix
+6. Do not use :root variables, if you need variables, put them in class of parent block.
+7. Do not add styles to body tag, add general styles to class of parent block
+8. Do not add styles to *{…}
+9. Do not generate initial content for design via scripts, it must be added in DOM
+10. If you use headings tags or paragraphs, it's required to add margin top and bottom. If you use lists, it's required to disable left margin and spacing
+
+***Important*** When you have centered content inside full width section, use next code for such sections. They must be most parent blocks on page
+
+```html
+<section class="wp-section alignfull" data-type="section-component">
+    <div class="wp-content-wrap" data-type="content-area-component">
+        Your Centered Content
+    </div>
+</section>
+```
+
+Use next styles for sections
+
+```css
+.wp-section{display:flex;justify-content:center;flex-direction:column;align-items:center;padding-right:var(--wp--spacing--side, min(3vw, 20px));padding-left:var(--wp--spacing--side, min(3vw, 20px));padding-top:var(--wp--spacing--top, 0px);padding-bottom:var(--wp--spacing--bottom, 0px);margin-top:0px;margin-bottom:0px;position:relative;}
+.wp-content-wrap{max-width:100%;width:var(--wp--style--global--wide-size, 1200px);}
+```
+
+You can add background and other styles to each section, you can change padding top and bottom, but always keep alignfull class, --wp--style--global--wide-size variable and --wp--spacing--side variables.
+
+### Step 2: Convert HTML to Blocks
+
+Save the HTML from Step 1 to a temporary `.html` file, then run the converter script located alongside this skill:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/skills/greenlight-vibe/scripts/convert.js" /path/to/input.html -o /path/to/output.txt
+```
+
+If `CLAUDE_PLUGIN_ROOT` is not set (standalone/local install), use the path relative to the skill directory:
+
+```bash
+node scripts/convert.js /path/to/input.html -o /path/to/output.txt
+```
+
+The script is zero-dependency (pure JS, no npm install). It accepts a full HTML page or snippet and outputs ready-to-paste Greenshift block code.
+
+**What the script does:**
+- Parses all `<style>` tags and converts CSS into a Style Manager block with `dynamicGClasses` (local classes), `styleAttributes`, hover/focus states, selectors, media queries, and keyframes
+- Parses all `<script>` tags and adds them as `customJs` with `customJsEnabled: true`
+- Converts every HTML element into `greenshift-blocks/element` blocks with correct `type` (`inner`, `text`, `no`), proper nesting, and mapped attributes (`href`, `src`, `alt`, `formAttributes`, `dynamicAttributes`, `icon`, `isVariation`, etc.)
+
+**Usage options:**
+```bash
+node scripts/convert.js input.html                # output to stdout
+node scripts/convert.js input.html -o output.txt  # output to file
+cat input.html | node scripts/convert.js          # pipe from stdin
+```
+
+### Step 3: Validate code of blocks
+
+To validate code after conversion, read `instructions/core-structure.md` and `instructions/attributes.md`  and make sure that code is relevant to requirements for Greenshift block syntax. If code has scripts, read `instructions/scripts.md`
+
+### Step 4: Fit to inner variable system
+
+Check if we have some values in styles that matches or close to one of our existed variables. If yes, replace value with variable and fallback
+
+**See `instructions/variables.md` for complete list of variables.**
+
+## Dynamic Content
+
+If user ask to show dynamic content, you can use dynamic placeholders inside values and in attributes like src, href, alt.
+
+**See `instructions/dynamic-content.md` for all available dynamic placeholders.**
+
+If user ask to show post or custom post type loops, you can use `instructions/dynamic-loops.md` for query loop syntax
+
+---
+
+## Output Requirements
+
+- Return **only** the generated block code
+- No explanations or surrounding text
+- **No HTML comments** - WordPress strips them; use `metadata:{"name":"..."}` for adding relevant titles to blocks.
+- Ready to paste directly into WordPress Gutenberg code editor

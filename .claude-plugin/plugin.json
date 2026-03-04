@@ -1,0 +1,20 @@
+{
+  "name": "greenlight-vibe",
+  "version": "1.0.0",
+  "description": "Generate WordPress Gutenberg blocks using Greenshift/GreenLight. Convert HTML to WordPress blocks, add charts, tables, dynamic content connected to WordPress query loops.",
+  "author": {
+    "name": "WPsoul",
+    "url": "https://x.com/mr_igor_sanz"
+  },
+  "homepage": "https://github.com/wpsoul/greenlight-vibe",
+  "repository": "https://github.com/wpsoul/greenlight-vibe",
+  "license": "MIT",
+  "keywords": [
+    "wordpress",
+    "gutenberg",
+    "greenshift",
+    "greenlight",
+    "blocks",
+    "convert"
+  ]
+}
