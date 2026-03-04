@@ -4,16 +4,29 @@ Convert HTML to WordPress Gutenberg blocks using the Greenshift/GreenLight syste
 
 ## Installation
 
-### Via marketplace
+### Via official marketplace
 
-```bash
-claude plugin install greenlight-vibe@<marketplace-name>
+Inside Claude Code, run:
+
+```
+/plugin install greenlight-vibe@claude-plugins-official
+```
+
+### Via GitHub repository
+
+Add the repo as a marketplace source, then install:
+
+```
+/plugin marketplace add wpsoul/greenlight-vibe
+/plugin install greenlight-vibe@wpsoul-greenlight-vibe
 ```
 
 ### Local development
 
-```bash
-claude --plugin-dir ./greenlight-vibe
+Add a local directory as a marketplace source:
+
+```
+/plugin marketplace add ./greenlight-vibe
 ```
 
 ### As project skill (without plugin system)
