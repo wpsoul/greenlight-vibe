@@ -25,6 +25,7 @@ Always build html first and use there best standards. But keep important rules
 8. Do not add styles to *{…}
 9. Do not generate initial content for design via scripts, it must be added in DOM
 10. If you use headings tags or paragraphs, it's required to add margin top and bottom. If you use lists, it's required to disable left margin and spacing
+11. Do not use js inline parameters like "onclick"
 
 ***Important*** When you have centered content inside full width section, use next code for such sections. They must be most parent blocks on page
 
