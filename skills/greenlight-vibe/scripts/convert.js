@@ -437,6 +437,10 @@ function convertNodeToBlock(node) {
       tag: 'svg',
       icon: { icon: { svgRaw: svgHTML, image: '' }, type: 'svg' }
     };
+    const cls = node.attributes['class'];
+    if (cls) params.className = cls;
+    const idAttr = node.attributes['id'];
+    if (idAttr) params.anchor = idAttr;
     const w = node.attributes['width'];
     const h = node.attributes['height'];
     if (w || h) {
@@ -554,6 +558,17 @@ function convertNodeToBlock(node) {
     if (Object.keys(fa).length > 0) params.formAttributes = fa;
   }
 
+  // Form tag attributes (method, action) – match elementcontainer.js blockProps
+  if (tag === 'form') {
+    const fa = {};
+    const method = node.attributes['method'];
+    fa.method = (method && method.toLowerCase() === 'post') ? 'post' : 'get';
+    const action = node.attributes['action'];
+    if (action) fa.action = action;
+    else fa.action = '';
+    params.formAttributes = fa;
+  }
+
   // Table cell attributes
   if (tag === 'td' || tag === 'th') {
     const colspan = node.attributes['colspan'];
@@ -630,6 +645,11 @@ function convertNodeToBlock(node) {
     if (fa.value) htmlAttrs += ` value="${escHtml(fa.value)}"`;
     if (fa.required) htmlAttrs += ` required`;
     if (fa.disabled) htmlAttrs += ` disabled`;
+  }
+  if (tag === 'form' && params.formAttributes) {
+    const fa = params.formAttributes;
+    htmlAttrs += ` method="${escHtml(fa.method || 'get')}"`;
+    htmlAttrs += ` action="${escHtml(fa.action != null ? fa.action : '')}"`;
   }
   if (tag === 'td' || tag === 'th') {
     if (params.colSpan) htmlAttrs += ` colspan="${params.colSpan}"`;
