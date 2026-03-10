@@ -432,7 +432,6 @@ function convertNodeToBlock(node) {
   // Handle SVG
   if (tag === 'svg') {
     let svgHTML = node.outerHTML || '<svg></svg>';
-    svgHTML = svgHTML.replace(/<svg\b([^>]*)>/, (_, attrs) => `<svg${attrs.replace(/\s+style="[^"]*"/, '')}>`);
     const params = {
       tag: 'svg',
       icon: { icon: { svgRaw: svgHTML, image: '' }, type: 'svg' }
