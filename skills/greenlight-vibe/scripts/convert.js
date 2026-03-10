@@ -432,15 +432,11 @@ function convertNodeToBlock(node) {
   // Handle SVG
   if (tag === 'svg') {
     let svgHTML = node.outerHTML || '<svg></svg>';
-    svgHTML = svgHTML.replace(/\s+style="[^"]*"/g, '');
+    svgHTML = svgHTML.replace(/<svg\b([^>]*)>/, (_, attrs) => `<svg${attrs.replace(/\s+style="[^"]*"/, '')}>`);
     const params = {
       tag: 'svg',
       icon: { icon: { svgRaw: svgHTML, image: '' }, type: 'svg' }
     };
-    const cls = node.attributes['class'];
-    if (cls) params.className = cls;
-    const idAttr = node.attributes['id'];
-    if (idAttr) params.anchor = idAttr;
     const w = node.attributes['width'];
     const h = node.attributes['height'];
     if (w || h) {
