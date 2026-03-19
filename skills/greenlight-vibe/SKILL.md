@@ -74,19 +74,15 @@ node scripts/convert.js input.html -o output.txt  # output to file
 cat input.html | node scripts/convert.js          # pipe from stdin
 ```
 
-### Step 3: Validate code of blocks
-
-To validate code after conversion, read `instructions/core-structure.md` and `instructions/attributes.md`  and make sure that code is relevant to requirements for Greenshift block syntax. If code has scripts, read `instructions/scripts.md`
-
-### Step 4: Validate frontend styles and scripts
-
-If code is saved programmatically, read and follow `instructions/validate-styles.md` for CSS rendering and `instructions/validate-scripts.md` for script saving.
-
-### Step 5: Fit to inner variable system
+### Step 3: Fit to inner variable system
 
 Check if we have some values in styles that matches or close to one of our existed variables. If yes, replace value with variable and fallback
 
 **See `instructions/variables.md` for complete list of variables.**
+
+### Step 4: Validate frontend styles and scripts
+
+If you add code as content and save it in wordpress site, read and follow `instructions/validate-styles.md` for CSS rendering and `instructions/validate-scripts.md` if you have custom scripts in blocks.
 
 ## Dynamic Content
 
