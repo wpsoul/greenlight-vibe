@@ -67,8 +67,17 @@ Example
 
 ---
 
+## How Scripts Work on the Frontend
+
+Scripts in `customJs` are **not** read from post content at render time. The PHP renderer reads them from the `gspb_block_js` WordPress option (`wp_options` table), keyed by the block's `id` attribute. The normal editor save flow writes to this option automatically. When inserting blocks programmatically, you must save scripts yourself.
+
+For full details on saving scripts to the site option (via WP-CLI, REST API, or wp:html fallback), see `instructions/validate-scripts.md`.
+
+---
+
 ## Important Notes
 
 - Use native script support via `customJs` and `customJsEnabled` parameters
 - The `{{PLUGIN_URL}}` placeholder is automatically replaced with the correct plugin path
 - Always ensure `customJsEnabled` is set to `true` for scripts to run
+- On the frontend, the actual script content is loaded from the `gspb_block_js` site option, not from post content

@@ -42,6 +42,7 @@ cp -r skills/greenlight-vibe .claude/skills/
 | Command | Description |
 |---------|-------------|
 | `/greenlight-vibe:convert <file.html>` | Convert an HTML file to Greenshift blocks |
+| `/greenlight-vibe:deconvert <file.txt>` | Convert Greenshift blocks back to HTML |
 
 ## Skill
 
@@ -52,8 +53,9 @@ The `greenlight-vibe` skill activates automatically when you use keywords like:
 
 1. **Build HTML** -- Claude creates clean vanilla HTML + CSS + JS following Greenshift conventions
 2. **Convert** -- The zero-dependency `scripts/convert.js` transforms HTML into block code (parses CSS into local classes with `styleAttributes`, extracts JS, maps all HTML attributes)
-3. **Validate** -- Claude checks output against block syntax rules
-4. **Variable fitting** -- Replaces hardcoded values with WordPress CSS variables
+3. **Deconvert when editing** -- The zero-dependency `scripts/deconvert.js` turns Greenshift block code back into HTML/CSS/JS for larger edits
+4. **Validate** -- Claude checks output against block syntax rules
+5. **Variable fitting** -- Replaces hardcoded values with WordPress CSS variables
 
 ## File Structure
 
@@ -62,12 +64,14 @@ greenlight-vibe/
 ├── .claude-plugin/
 │   └── plugin.json                  # Plugin manifest
 ├── commands/
-│   └── convert.md                   # /greenlight-vibe:convert
+│   ├── convert.md                   # /greenlight-vibe:convert
+│   └── deconvert.md                 # /greenlight-vibe:deconvert
 ├── skills/
 │   └── greenlight-vibe/
 │       ├── SKILL.md                 # Main skill (auto-invoked)
 │       ├── scripts/
-│       │   └── convert.js           # HTML-to-blocks converter (zero-dependency)
+│       │   ├── convert.js           # HTML-to-blocks converter (zero-dependency)
+│       │   └── deconvert.js         # Blocks-to-HTML converter (zero-dependency)
 │       └── instructions/
 │           ├── core-structure.md    # Block format, JSON parameters
 │           ├── attributes.md        # HTML attributes, links, images, icons
@@ -79,7 +83,7 @@ greenlight-vibe/
 └── README.md
 ```
 
-## Converter Script
+## Converter Scripts
 
 The `scripts/convert.js` is a standalone, zero-dependency Node.js script that converts full HTML pages or snippets into Greenshift block code:
 
@@ -87,6 +91,14 @@ The `scripts/convert.js` is a standalone, zero-dependency Node.js script that co
 node scripts/convert.js input.html                # stdout
 node scripts/convert.js input.html -o output.txt  # file
 cat input.html | node scripts/convert.js          # stdin
+```
+
+The `scripts/deconvert.js` reverses the process and converts Greenshift block code back into HTML/CSS/JS:
+
+```bash
+node scripts/deconvert.js input.txt                # stdout
+node scripts/deconvert.js input.txt -o output.html # file
+cat input.txt | node scripts/deconvert.js          # stdin
 ```
 
 **Features:**

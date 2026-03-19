@@ -1,6 +1,6 @@
 ---
 name: greenlight-vibe
-description: Generate design for WordPress Gutenberg blocks using Greenshift/GreenLight plugin or convert any data to wordpress blocks. Use when user asks to create design with Greenshift or Greenlight blocks for wordpress site, convert anything to wordpress blocks or build charts in content. Triggers on keywords: wordpress, gutenberg, greenshift, greenlight, convert to wordpress, chart.
+description: Generate or edit design for WordPress Gutenberg blocks using Greenshift/GreenLight plugin. Convert any data to wordpress blocks or convert greenshift blocks back to html + css + js. Use when user asks to create design with Greenshift or Greenlight blocks for wordpress site, convert anything to wordpress blocks or build charts in content. Triggers on keywords: wordpress, gutenberg, greenshift, greenlight, convert to wordpress, convert greenshift blocks to vanilla html, build chart.
 ---
 
 # Greenshift/Greenlight Block Generator and Data Convertor to WordPress blocks
@@ -78,9 +78,11 @@ cat input.html | node scripts/convert.js          # pipe from stdin
 
 To validate code after conversion, read `instructions/core-structure.md` and `instructions/attributes.md`  and make sure that code is relevant to requirements for Greenshift block syntax. If code has scripts, read `instructions/scripts.md`
 
-***Important*** If you use returned code to add it to page programatically, for example, via MCP or REST API, make sure to add attribute "CSSRender": "1" to blocks which have styleAttributes attribute or dynamicGClasses attribute
+### Step 4: Validate frontend styles and scripts
 
-### Step 4: Fit to inner variable system
+If code is saved programmatically, read and follow `instructions/validate-styles.md` for CSS rendering and `instructions/validate-scripts.md` for script saving.
+
+### Step 5: Fit to inner variable system
 
 Check if we have some values in styles that matches or close to one of our existed variables. If yes, replace value with variable and fallback
 
@@ -102,3 +104,36 @@ If user ask to show post or custom post type loops, you can use `instructions/dy
 - No explanations or surrounding text
 - **No HTML comments** - WordPress strips them; use `metadata:{"name":"..."}` for adding relevant titles to blocks.
 - Ready to paste directly into WordPress Gutenberg code editor
+
+
+## Workflow to edit existing design of page that is made with greenshift-blocks
+
+If user asked for minimal changes, like color change, try to edit blocks code directly and save updated code
+
+If user asked to make bigger changes, you need to make next steps.
+
+### Step 1: Prepare code
+
+Take raw content of page and check if it has greenshift-blocks/element blocks
+
+### Step 2: Convert Block code back to HTML
+
+Save the blocks code to a temporary `.html` file, then run the deconverter script located alongside this skill:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/skills/greenlight-vibe/scripts/deconvert.js" /path/to/input.html -o /path/to/output.txt
+```
+
+If `CLAUDE_PLUGIN_ROOT` is not set (standalone/local install), use the path relative to the skill directory:
+
+```bash
+node scripts/deconvert.js /path/to/input.html -o /path/to/output.txt
+```
+
+### Step 3: Validate code of blocks
+
+To validate code after conversion, read `instructions/core-structure.md` and `instructions/attributes.md`  and make sure that code is relevant to requirements for Greenshift block syntax. If code has scripts, read `instructions/scripts.md`
+
+### Step 4: Validate frontend styles and scripts
+
+If code is saved programmatically, read and follow `instructions/validate-styles.md` for CSS rendering and `instructions/validate-scripts.md` for script saving.
