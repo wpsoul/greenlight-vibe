@@ -130,10 +130,10 @@ If `CLAUDE_PLUGIN_ROOT` is not set (standalone/local install), use the path rela
 node scripts/deconvert.js /path/to/input.html -o /path/to/output.txt
 ```
 
-### Step 3: Validate code of blocks
+### Step 3: Edit the converted code and convert it back to blocks
 
-To validate code after conversion, read `instructions/core-structure.md` and `instructions/attributes.md`  and make sure that code is relevant to requirements for Greenshift block syntax. If code has scripts, read `instructions/scripts.md`
+Make the requested changes in the HTML/CSS/JS produced by the deconverter. After editing, run the normal HTML-to-block conversion workflow again and validate the final Greenshift block code.
 
-### Step 4: Validate frontend styles and scripts
+### Step 4: Replace the full original block content
 
-If code is saved programmatically, read and follow `instructions/validate-styles.md` for CSS rendering and `instructions/validate-scripts.md` for script saving.
+Return the full updated Greenshift block code and use it as a complete replacement for the original block content. Do not return only a diff or partial fragment. Keep unchanged blocks and attributes as they were unless they must change to support the requested update.
