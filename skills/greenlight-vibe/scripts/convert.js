@@ -279,42 +279,41 @@ function parseCss(cssText) {
     const fullSelector = m[1].trim();
     const declarations = m[2].trim();
     if (!fullSelector || !declarations) continue;
-
-    const firstClassMatch = fullSelector.match(/\.([a-zA-Z_-][a-zA-Z0-9_-]*)/);
-    if (!firstClassMatch) {
-      if (/^\*(\s*,|\s*\{|$|:)/.test(fullSelector) || fullSelector === '*') continue;
-      result.nonClassCss += `${fullSelector}{${declarations}}`;
-      continue;
-    }
-
-    const baseClassName = firstClassMatch[1];
-    result.allClasses.add(baseClassName);
-
-    if (!result.classes[baseClassName]) {
-      result.classes[baseClassName] = { baseStyles: {}, baseCSS: '', selectors: [], mediaCSS: '', customCSS_Extra: '' };
-    }
-
-    const classData = result.classes[baseClassName];
-    const { styleAttributes, customCSS } = parseDeclarations(declarations);
-    if (customCSS) classData.customCSS_Extra += customCSS;
-
-    const baseRe = new RegExp(`^\\.${escRegex(baseClassName)}(:[a-zA-Z-]+)?$`);
-    const isBase = baseRe.test(fullSelector);
-
-    if (isBase) {
-      if (fullSelector.includes(':hover')) {
-        for (const [k, v] of Object.entries(styleAttributes)) classData.baseStyles[`${k}_hover`] = v;
-      } else if (fullSelector.includes(':focus')) {
-        for (const [k, v] of Object.entries(styleAttributes)) classData.baseStyles[`${k}_focus`] = v;
-      } else {
-        Object.assign(classData.baseStyles, styleAttributes);
+    const selectorParts = fullSelector.split(',').map(s => s.trim()).filter(Boolean);
+    selectorParts.forEach(selectorPart => {
+      const firstClassMatch = selectorPart.match(/\.([a-zA-Z_-][a-zA-Z0-9_-]*)/);
+      if (!firstClassMatch) {
+        if (/^\*(\s*,|\s*\{|$|:)/.test(selectorPart) || selectorPart === '*') return;
+        result.nonClassCss += `${selectorPart}{${declarations}}`;
+        return;
       }
-      classData.baseCSS += `${fullSelector}{${declarations}}`;
-    } else {
-      const selectorParts = fullSelector.split(',').map(s => s.trim());
-      selectorParts.forEach(part => {
-        if (!part.match(new RegExp(`\\.${escRegex(baseClassName)}`))) return;
-        const subMatch = part.match(new RegExp(`\\.${escRegex(baseClassName)}(.*)$`));
+
+      const baseClassName = firstClassMatch[1];
+      result.allClasses.add(baseClassName);
+
+      if (!result.classes[baseClassName]) {
+        result.classes[baseClassName] = { baseStyles: {}, baseCSS: '', selectors: [], mediaCSS: '', customCSS_Extra: '' };
+      }
+
+      const classData = result.classes[baseClassName];
+      const { styleAttributes, customCSS } = parseDeclarations(declarations);
+      if (customCSS) classData.customCSS_Extra += customCSS;
+
+      const baseRe = new RegExp(`^\\.${escRegex(baseClassName)}(:[a-zA-Z-]+)?$`);
+      const isBase = baseRe.test(selectorPart);
+
+      if (isBase) {
+        if (selectorPart.includes(':hover')) {
+          for (const [k, v] of Object.entries(styleAttributes)) classData.baseStyles[`${k}_hover`] = v;
+        } else if (selectorPart.includes(':focus')) {
+          for (const [k, v] of Object.entries(styleAttributes)) classData.baseStyles[`${k}_focus`] = v;
+        } else {
+          Object.assign(classData.baseStyles, styleAttributes);
+        }
+        classData.baseCSS += `${selectorPart}{${declarations}}`;
+      } else {
+        if (!selectorPart.match(new RegExp(`\\.${escRegex(baseClassName)}`))) return;
+        const subMatch = selectorPart.match(new RegExp(`\\.${escRegex(baseClassName)}(.*)$`));
         const subVal = subMatch ? subMatch[1] : '';
         if (!subVal) return;
 
@@ -336,8 +335,8 @@ function parseCss(cssText) {
             css: `.${baseClassName}${subVal}{${declarations}}`
           });
         }
-      });
-    }
+      }
+    });
   }
 
   mediaQueries.forEach(mq => {
@@ -351,19 +350,24 @@ function parseCss(cssText) {
     while ((im = innerRe.exec(content)) !== null) {
       const sel = im[1].trim();
       const decl = im[2].trim();
-      const fc = sel.match(/\.([a-zA-Z_-][a-zA-Z0-9_-]*)/);
-      if (!fc) {
-        if (/^\*(\s*,|\s*\{|$|:)/.test(sel) || sel === '*') continue;
-        hasNonClass = true; nonClassContent += `${sel}{${decl}}`; continue;
-      }
-      const cn = fc[1];
-      result.allClasses.add(cn);
-      if (!result.classes[cn]) {
-        result.classes[cn] = { baseStyles: {}, baseCSS: '', selectors: [], mediaCSS: '', customCSS_Extra: '' };
-      }
-      const mqCSS = `${cond}{${sel}{${decl}}}`;
-      result.classes[cn].customCSS_Extra += mqCSS;
-      result.classes[cn].mediaCSS += mqCSS;
+      const selectorParts = sel.split(',').map(s => s.trim()).filter(Boolean);
+      selectorParts.forEach(selectorPart => {
+        const fc = selectorPart.match(/\.([a-zA-Z_-][a-zA-Z0-9_-]*)/);
+        if (!fc) {
+          if (/^\*(\s*,|\s*\{|$|:)/.test(selectorPart) || selectorPart === '*') return;
+          hasNonClass = true;
+          nonClassContent += `${selectorPart}{${decl}}`;
+          return;
+        }
+        const cn = fc[1];
+        result.allClasses.add(cn);
+        if (!result.classes[cn]) {
+          result.classes[cn] = { baseStyles: {}, baseCSS: '', selectors: [], mediaCSS: '', customCSS_Extra: '' };
+        }
+        const mqCSS = `${cond}{${selectorPart}{${decl}}}`;
+        result.classes[cn].customCSS_Extra += mqCSS;
+        result.classes[cn].mediaCSS += mqCSS;
+      });
     }
     if (hasNonClass && nonClassContent) result.nonClassCss += `${cond}{${nonClassContent}}`;
   });
@@ -403,6 +407,56 @@ function hasElementChildren(node) {
   return node.children.some(c => c.type === 'element');
 }
 
+function hasElementChildrenIn(children) {
+  return children.some(child => child.type === 'element');
+}
+
+function getDirectTextContentFromChildren(children) {
+  return children
+    .filter(child => child.type === 'text')
+    .map(child => child.content)
+    .join(' ')
+    .trim();
+}
+
+function getRenderableChildren(node, dynamicTextValue) {
+  const children = Array.isArray(node.children) ? node.children : [];
+  if (!dynamicTextValue) return children;
+
+  const rewrittenChildren = [];
+  let textReplaced = false;
+
+  for (const child of children) {
+    if (child.type === 'text') {
+      if (!textReplaced) {
+        rewrittenChildren.push({ type: 'text', content: dynamicTextValue });
+        textReplaced = true;
+      }
+      continue;
+    }
+    rewrittenChildren.push(child);
+  }
+
+  if (!textReplaced) {
+    rewrittenChildren.unshift({ type: 'text', content: dynamicTextValue });
+  }
+
+  return rewrittenChildren;
+}
+
+function parseJsonAttribute(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return null;
+  }
+}
+
+function generateGsBlockId() {
+  return `gsbp-${Math.random().toString(16).slice(2, 9).padEnd(7, '0')}`;
+}
+
 function convertNodeToBlock(node) {
   if (node.type === 'text') {
     const text = node.content.trim();
@@ -414,6 +468,14 @@ function convertNodeToBlock(node) {
 
   if (node.type !== 'element') return null;
   const tag = node.tagName;
+  const dynamicTextValue = node.attributes['data-gl-dynamic-text'];
+  const dynamicHrefValue = node.attributes['data-gl-dynamic-href'];
+  const dynamicSrcValue = node.attributes['data-gl-dynamic-src'];
+  const dynamicAltValue = node.attributes['data-gl-dynamic-alt'];
+  const dynamicTitleValue = node.attributes['data-gl-dynamic-title'];
+  const queryArgsValue = node.attributes['data-gl-query-arguments'];
+  const hasQueryGrid = Boolean(queryArgsValue);
+  const renderChildren = getRenderableChildren(node, dynamicTextValue);
 
   if (SKIP_TAGS.has(tag)) return null;
 
@@ -453,7 +515,10 @@ function convertNodeToBlock(node) {
 
   // className
   const cls = node.attributes['class'];
-  if (cls) params.className = cls;
+  if (cls) {
+    if (hasQueryGrid) params.wrapperClasses = cls;
+    else params.className = cls;
+  }
 
   // anchor (id)
   const idAttr = node.attributes['id'];
@@ -478,8 +543,8 @@ function convertNodeToBlock(node) {
   if (dynAttrs.length > 0) params.dynamicAttributes = dynAttrs;
 
   // Check children
-  const hasElChildren = hasElementChildren(node);
-  const directText = getDirectTextContent(node);
+  const hasElChildren = hasElementChildrenIn(renderChildren);
+  const directText = dynamicTextValue || getDirectTextContentFromChildren(renderChildren);
 
   // Text content handling
   if (type === 'text') {
@@ -501,21 +566,21 @@ function convertNodeToBlock(node) {
 
   // Link attributes
   if (tag === 'a') {
-    const href = node.attributes['href'];
+    const href = dynamicHrefValue || node.attributes['href'];
     if (href) params.href = href;
     if (node.attributes['target'] === '_blank') params.linkNewWindow = true;
     const rel = node.attributes['rel'] || '';
     if (rel.includes('nofollow')) params.linkNoFollow = true;
     if (rel.includes('sponsored')) params.linkSponsored = true;
-    const title = node.attributes['title'];
+    const title = dynamicTitleValue || node.attributes['title'];
     if (title) params.title = title;
   }
 
   // Image attributes
   if (tag === 'img') {
-    const src = node.attributes['src'];
+    const src = dynamicSrcValue || node.attributes['src'];
     if (src) params.src = src;
-    const alt = node.attributes['alt'];
+    const alt = dynamicAltValue || node.attributes['alt'];
     if (alt) params.alt = alt;
     const origW = node.attributes['width'];
     const origH = node.attributes['height'];
@@ -526,7 +591,7 @@ function convertNodeToBlock(node) {
 
   // Video attributes
   if (tag === 'video') {
-    const src = node.attributes['src'];
+    const src = dynamicSrcValue || node.attributes['src'];
     if (src) params.src = src;
     const poster = node.attributes['poster'];
     if (poster) params.poster = poster;
@@ -581,11 +646,9 @@ function convertNodeToBlock(node) {
     // text-only, no inner blocks
   } else if (effectiveType !== 'no') {
     const childBlocks = [];
-    if (node.children) {
-      for (const child of node.children) {
-        const childBlock = convertNodeToBlock(child);
-        if (childBlock) childBlocks.push(childBlock);
-      }
+    for (const child of renderChildren) {
+      const childBlock = convertNodeToBlock(child);
+      if (childBlock) childBlocks.push(childBlock);
     }
     if (childBlocks.length > 0) {
       // If text-type with inner blocks, change to inner
@@ -598,11 +661,27 @@ function convertNodeToBlock(node) {
     }
   }
 
+  if (hasQueryGrid) {
+    const queryFilters = parseJsonAttribute(queryArgsValue) || {};
+    const queryParams = {
+      id: generateGsBlockId(),
+      data_source: 'query',
+      displayStyle: 'custom',
+      query_filters: queryFilters
+    };
+    const queryJson = wpJsonEncode(queryParams);
+    if (innerBlocksStr) {
+      return `<!-- wp:greenshift-blocks/querygrid ${queryJson} -->\n${innerBlocksStr}\n<!-- /wp:greenshift-blocks/querygrid -->`;
+    }
+    return `<!-- wp:greenshift-blocks/querygrid ${queryJson} /-->`;
+  }
+
   // Build HTML output
   const json = wpJsonEncode(params);
   let htmlAttrs = '';
   if (cls) htmlAttrs += ` class="${cls}"`;
   if (idAttr) htmlAttrs += ` id="${idAttr}"`;
+  const titleAttrValue = dynamicTitleValue || node.attributes['title'];
 
   // Add specific HTML attributes based on tag
   if (tag === 'a') {
@@ -616,6 +695,7 @@ function convertNodeToBlock(node) {
     }
     if (params.title) htmlAttrs += ` title="${escHtml(params.title)}"`;
   }
+  if (tag !== 'a' && titleAttrValue) htmlAttrs += ` title="${escHtml(titleAttrValue)}"`;
   if (tag === 'img') {
     if (params.src) htmlAttrs += ` src="${escHtml(params.src)}"`;
     if (params.alt) htmlAttrs += ` alt="${escHtml(params.alt)}"`;

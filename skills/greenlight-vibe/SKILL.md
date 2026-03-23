@@ -26,6 +26,7 @@ Always build html first and use there best standards. But keep important rules
 9. Do not generate initial content for design via scripts, it must be added in DOM
 10. If you use headings tags or paragraphs, it's required to add margin top and bottom. If you use lists, it's required to disable left margin and spacing
 11. Do not use js inline parameters like "onclick"
+12. Important!!! All styles add in section `<style data-wp-block-html="css">...</style>`. All scripts add in section `<script data-wp-block-html="js">...</script>`
 
 ***Important*** When you have centered content inside full width section, use next code for such sections. They must be most parent blocks on page
 
@@ -45,6 +46,16 @@ Use next styles for sections
 ```
 
 You can add background and other styles to each section, you can change padding top and bottom, but always keep alignfull class, --wp--style--global--wide-size variable and --wp--spacing--side variables.
+
+When user asks to add dynamic content, read and follow `instructions/dynamic-placeholders.md`.
+
+When user asks to build query loops, dynamic loops, archives, or other query-driven layouts, read and follow both:
+
+- `instructions/dynamic-loops.md`
+- `instructions/dynamic-placeholders.md`
+
+Important!!! Add dynamic placeholders ONLY if user asked to make dynamic content or query loops
+
 
 ### Step 2: Convert HTML to Blocks
 
@@ -83,14 +94,6 @@ Check if we have some values in styles that matches or close to one of our exist
 ### Step 4: Validate frontend styles and scripts
 
 If you add code as content and save it in wordpress site, read and follow `instructions/validate-styles.md` for CSS rendering and `instructions/validate-scripts.md` if you have custom scripts in blocks.
-
-## Dynamic Content
-
-If user ask to show dynamic content, you can use dynamic placeholders inside values and in attributes like src, href, alt.
-
-**See `instructions/dynamic-content.md` for all available dynamic placeholders.**
-
-If user ask to show post or custom post type loops, you can use `instructions/dynamic-loops.md` for query loop syntax
 
 ---
 
