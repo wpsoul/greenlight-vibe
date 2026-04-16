@@ -161,12 +161,66 @@ function collectCss(blocks) {
       cssChunks.push(attrs.customCss);
     }
 
+    if (attrs.dynamicGClasses && Array.isArray(attrs.dynamicGClasses)) {
+      cssChunks.push(...collectDynamicClassCss(attrs.dynamicGClasses));
+    }
+
     if (block.innerBlocks && block.innerBlocks.length > 0) {
       cssChunks.push(...collectCss(block.innerBlocks));
     }
   }
 
   return cssChunks;
+}
+
+function collectDynamicClassCss(dynamicGClasses) {
+  const cssChunks = [];
+
+  for (const dynamicClass of dynamicGClasses) {
+    const baseSelector = `.${dynamicClass.value}`;
+
+    if (dynamicClass.css) cssChunks.push(dynamicClass.css);
+
+    const classCustomCss = dynamicClass.attributes && dynamicClass.attributes.styleAttributes
+      ? dynamicClass.attributes.styleAttributes.customCSS_Extra
+      : '';
+    if (classCustomCss) cssChunks.push(resolveCurrentSelector(classCustomCss, baseSelector));
+
+    if (dynamicClass.selectors && Array.isArray(dynamicClass.selectors)) {
+      for (const selector of dynamicClass.selectors) {
+        if (selector.css) cssChunks.push(selector.css);
+
+        const selectorCustomCss = selector.attributes && selector.attributes.styleAttributes
+          ? selector.attributes.styleAttributes.customCSS_Extra
+          : '';
+        if (selectorCustomCss) cssChunks.push(resolveCurrentSelector(selectorCustomCss, baseSelector));
+      }
+    }
+  }
+
+  return cssChunks;
+}
+
+function resolveCurrentSelector(cssText, selector) {
+  return String(cssText || '').replace(/\{CURRENT\}/g, selector);
+}
+
+function collectHeadHtml(blocks) {
+  const htmlChunks = [];
+
+  for (const block of blocks) {
+    const attrs = block.attributes || {};
+
+    if (block.name === 'html' && attrs.metadata && attrs.metadata.name === 'Links Import' && block.innerHTML) {
+      htmlChunks.push(block.innerHTML.trim());
+    }
+
+    if (block.innerBlocks && block.innerBlocks.length > 0) {
+      htmlChunks.push(...collectHeadHtml(block.innerBlocks));
+    }
+  }
+
+  return htmlChunks;
 }
 
 // ─── JS Collector ───────────────────────────────────────────────────────────
@@ -233,6 +287,10 @@ function blockToHtml(block, indent) {
   if (blockName === 'template-part') return '';
 
   if (!blockName.startsWith('greenshift-blocks/')) {
+    if (blockName === 'html') {
+      if (attrs.metadata && attrs.metadata.name === 'Links Import') return '';
+      return block.innerHTML ? `${indent}${block.innerHTML}` : '';
+    }
     if (blockName.startsWith('core/')) return '';
     const childHtml = (block.innerBlocks || [])
       .map(b => blockToHtml(b, indent))
@@ -493,8 +551,7 @@ function buildHtmlAttributes(tag, attrs) {
 
   if (attrs.dynamicAttributes && Array.isArray(attrs.dynamicAttributes)) {
     for (const da of attrs.dynamicAttributes) {
-      if (da.name === 'style') continue;
-      html += ` ${da.name}="${escAttr(da.value)}"`;
+      html += formatHtmlAttribute(da.name, da.value);
     }
   }
 
@@ -516,6 +573,11 @@ function buildHtmlAttributes(tag, attrs) {
   }
 
   return html;
+}
+
+function formatHtmlAttribute(name, value) {
+  if (value === '') return ` ${name}`;
+  return ` ${name}="${escAttr(value)}"`;
 }
 
 // ─── CSS Deduplication ──────────────────────────────────────────────────────
@@ -585,6 +647,7 @@ function deconvert(blockMarkup) {
   const blocks = parseBlocks(blockMarkup);
 
   const cssChunks = collectCss(blocks);
+  const headHtmlChunks = collectHeadHtml(blocks);
   const jsChunks = collectJs(blocks);
 
   const htmlParts = [];
@@ -604,6 +667,10 @@ function deconvert(blockMarkup) {
   output.push('  <meta charset="UTF-8" />');
   output.push('  <meta name="viewport" content="width=device-width, initial-scale=1.0" />');
   output.push('  <title>Exported Page</title>');
+
+  if (headHtmlChunks.length > 0) {
+    output.push(...headHtmlChunks.join('\n').split('\n').map(line => `  ${line}`));
+  }
 
   if (combinedCss) {
     output.push('  <style>');

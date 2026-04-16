@@ -129,6 +129,7 @@ function parseHTML(html) {
             children: [],
             outerHTML: ''
           };
+          if (tag.selfClosing) node.outerHTML = html.slice(tagStartPos, pos);
           if (tag.tagName === 'svg') {
             const svgCloseIdx = html.indexOf('</svg>', pos);
             if (svgCloseIdx !== -1) {
@@ -214,8 +215,56 @@ function parseSpacingShorthand(value, prefix) {
   return r;
 }
 
+function splitCssTokens(value) {
+  const tokens = [];
+  let current = '';
+  let depth = 0;
+  let quote = '';
+
+  for (let index = 0; index < value.length; index++) {
+    const char = value[index];
+
+    if (quote) {
+      current += char;
+      if (char === quote && value[index - 1] !== '\\') quote = '';
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      current += char;
+      continue;
+    }
+
+    if (char === '(') {
+      depth++;
+      current += char;
+      continue;
+    }
+
+    if (char === ')') {
+      depth = Math.max(0, depth - 1);
+      current += char;
+      continue;
+    }
+
+    if (/\s/.test(char) && depth === 0) {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (current) tokens.push(current);
+  return tokens;
+}
+
 function parseGapShorthand(value) {
-  const parts = value.split(/\s+/).filter(Boolean);
+  const parts = splitCssTokens(value);
   const r = {};
   if (parts.length === 1) { r.rowGap = [parts[0]]; r.columnGap = [parts[0]]; }
   else if (parts.length >= 2) { r.rowGap = [parts[0]]; r.columnGap = [parts[1]]; }
@@ -536,7 +585,7 @@ function convertNodeToBlock(node) {
   const dynAttrs = [];
   for (const [name, value] of Object.entries(node.attributes)) {
     if (name === 'data-type' && consumedDataType) continue;
-    if (name.startsWith('data-') || name.startsWith('on') || name === 'style') {
+    if (name.startsWith('data-') || name.startsWith('on') || name === 'style' || name.startsWith('aria-') || name === 'crossorigin') {
       dynAttrs.push({ name, value });
     }
   }
@@ -733,7 +782,7 @@ function convertNodeToBlock(node) {
 
   if (dynAttrs.length > 0) {
     for (const da of dynAttrs) {
-      htmlAttrs += ` ${da.name}="${escHtml(da.value)}"`;
+      htmlAttrs += formatHtmlAttribute(da.name, da.value);
     }
   }
 
@@ -750,6 +799,26 @@ function convertNodeToBlock(node) {
   } else {
     return `<!-- wp:greenshift-blocks/element ${json} -->\n<${tag}${htmlAttrs}></${tag}>\n<!-- /wp:greenshift-blocks/element -->`;
   }
+}
+
+function formatHtmlAttribute(name, value) {
+  if (value === '') return ` ${name}`;
+  return ` ${name}="${escHtml(value)}"`;
+}
+
+function serializeVoidElement(node) {
+  let html = `<${node.tagName}`;
+  for (const [name, value] of Object.entries(node.attributes || {})) {
+    html += formatHtmlAttribute(name, value);
+  }
+  html += '>';
+  return html;
+}
+
+function buildRawHtmlBlock(rawHtml, name) {
+  const params = name ? { metadata: { name } } : {};
+  const json = wpJsonEncode(params);
+  return `<!-- wp:html ${json} -->\n${rawHtml}\n<!-- /wp:html -->`;
 }
 
 function escHtml(s) {
@@ -818,6 +887,7 @@ function convert(htmlInput) {
   // Extract <style> and <script> content
   const styles = [];
   const scripts = [];
+  const links = [];
 
   function collectMeta(nodeList) {
     for (const node of nodeList) {
@@ -827,6 +897,10 @@ function convert(htmlInput) {
         }
         if (node.tagName === 'script' && !node.attributes['src'] && node.rawText && node.rawText.trim()) {
           scripts.push(node.rawText.trim());
+        }
+        if (node.tagName === 'link') {
+          const linkHtml = node.outerHTML || serializeVoidElement(node);
+          links.push(linkHtml);
         }
         // Recurse into children to find nested style/script (e.g. inside <head>)
         if (node.children) collectMeta(node.children);
@@ -873,6 +947,7 @@ function convert(htmlInput) {
 
   // Output: Style Manager first (if any), then content blocks
   const output = [];
+  if (links.length > 0) output.push(buildRawHtmlBlock(links.join('\n'), 'Links Import'));
   if (styleManagerBlock) output.push(styleManagerBlock);
   output.push(...blocks);
 
