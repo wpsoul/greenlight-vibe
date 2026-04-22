@@ -584,14 +584,27 @@ function formatHtmlAttribute(name, value) {
 
 function deduplicateCss(cssText) {
   const seen = new Set();
+  const imports = [];
   const rules = [];
   const regex = /([^{}]+)\{([^{}]*)\}/g;
   let m;
 
+  const importRegex = /@import\s+(?:[^;"']+|"[^"]*"|'[^']*')+\s*;/g;
+  let cleanCss = cssText;
+  let im;
+  while ((im = importRegex.exec(cssText)) !== null) {
+    const importRule = im[0].trim();
+    if (!seen.has(importRule)) {
+      seen.add(importRule);
+      imports.push(importRule);
+    }
+  }
+  cleanCss = cleanCss.replace(importRegex, '');
+
   const keyframeRegex = /@keyframes\s+[a-zA-Z0-9_-]+\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
   const keyframes = [];
   let km;
-  while ((km = keyframeRegex.exec(cssText)) !== null) {
+  while ((km = keyframeRegex.exec(cleanCss)) !== null) {
     const kfName = km[0].match(/@keyframes\s+([a-zA-Z0-9_-]+)/)?.[1];
     if (kfName && !seen.has(`@keyframes ${kfName}`)) {
       seen.add(`@keyframes ${kfName}`);
@@ -599,7 +612,7 @@ function deduplicateCss(cssText) {
     }
   }
 
-  const noKf = cssText.replace(keyframeRegex, '');
+  const noKf = cleanCss.replace(keyframeRegex, '');
 
   const mediaRegex = /@media[^{]+\{((?:[^{}]*\{[^{}]*\})*[^{}]*)\}/g;
   const mediaBlocks = [];
@@ -622,7 +635,7 @@ function deduplicateCss(cssText) {
     }
   }
 
-  return [...rules, ...mediaBlocks, ...keyframes].join('\n');
+  return [...imports, ...rules, ...mediaBlocks, ...keyframes].join('\n');
 }
 
 // ─── Utility ────────────────────────────────────────────────────────────────

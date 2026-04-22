@@ -308,8 +308,13 @@ function parseCss(cssText) {
 
   let clean = cssText.replace(/\/\*[\s\S]*?\*\//g, '');
 
-  const kfRegex = /@keyframes\s+[a-zA-Z0-9_-]+\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
+  const importRegex = /@import\s+(?:[^;"']+|"[^"]*"|'[^']*')+\s*;/g;
+  let importCss = '';
   let m;
+  while ((m = importRegex.exec(clean)) !== null) importCss += `${m[0]}\n`;
+  clean = clean.replace(importRegex, '');
+
+  const kfRegex = /@keyframes\s+[a-zA-Z0-9_-]+\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g;
   while ((m = kfRegex.exec(clean)) !== null) result.nonClassCss += m[0];
   clean = clean.replace(kfRegex, '');
 
@@ -420,6 +425,8 @@ function parseCss(cssText) {
     }
     if (hasNonClass && nonClassContent) result.nonClassCss += `${cond}{${nonClassContent}}`;
   });
+
+  if (importCss) result.nonClassCss = `${importCss}${result.nonClassCss}`;
 
   return result;
 }
