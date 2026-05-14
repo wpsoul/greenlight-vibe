@@ -658,6 +658,23 @@ function convertNodeToBlock(node) {
     if ('playsinline' in node.attributes) params.playsinline = true;
   }
 
+  // Iframe attributes — only `src` is consumed natively by element/save.js;
+  // everything else must go through dynamicAttributes (which the block
+  // applies on top of blockProps at render time).
+  if (tag === 'iframe') {
+    const rawSrc = dynamicSrcValue || node.attributes['src'];
+    const src = rawSrc ? toYoutubeEmbed(rawSrc) : rawSrc;
+    if (src) params.src = src;
+    const iframeAttrNames = ['title', 'allow', 'allowfullscreen', 'referrerpolicy', 'sandbox', 'name', 'width', 'height', 'frameborder', 'loading'];
+    for (const attrName of iframeAttrNames) {
+      if (attrName in node.attributes) {
+        dynAttrs.push({ name: attrName, value: node.attributes[attrName] || '' });
+      }
+    }
+    if (dynAttrs.length > 0) params.dynamicAttributes = dynAttrs;
+    effectiveType = 'no';
+  }
+
   // Form element attributes
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button') {
     const fa = {};
@@ -751,7 +768,7 @@ function convertNodeToBlock(node) {
     }
     if (params.title) htmlAttrs += ` title="${escHtml(params.title)}"`;
   }
-  if (tag !== 'a' && titleAttrValue) htmlAttrs += ` title="${escHtml(titleAttrValue)}"`;
+  if (tag !== 'a' && tag !== 'iframe' && titleAttrValue) htmlAttrs += ` title="${escHtml(titleAttrValue)}"`;
   if (tag === 'img') {
     if (params.src) htmlAttrs += ` src="${escHtml(params.src)}"`;
     if (params.alt) htmlAttrs += ` alt="${escHtml(params.alt)}"`;
@@ -767,6 +784,9 @@ function convertNodeToBlock(node) {
     if (params.muted) htmlAttrs += ` muted`;
     if (params.controls) htmlAttrs += ` controls`;
     if (params.playsinline) htmlAttrs += ` playsinline`;
+  }
+  if (tag === 'iframe') {
+    if (params.src) htmlAttrs += ` src="${escHtml(params.src)}"`;
   }
   if ((tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button') && params.formAttributes) {
     const fa = params.formAttributes;
@@ -806,6 +826,40 @@ function convertNodeToBlock(node) {
   } else {
     return `<!-- wp:greenshift-blocks/element ${json} -->\n<${tag}${htmlAttrs}></${tag}>\n<!-- /wp:greenshift-blocks/element -->`;
   }
+}
+
+function toYoutubeEmbed(url) {
+  if (!url || typeof url !== 'string') return url;
+  const trimmed = url.trim();
+  // Already an embed URL — leave alone
+  if (/^https?:\/\/(?:www\.)?youtube(?:-nocookie)?\.com\/embed\//i.test(trimmed)) return trimmed;
+
+  // youtu.be/<id>[?...]
+  let m = trimmed.match(/^https?:\/\/youtu\.be\/([A-Za-z0-9_-]{6,})(\?[^#]*)?(#.*)?$/i);
+  if (m) {
+    const id = m[1];
+    const query = m[2] || '';
+    return `https://www.youtube.com/embed/${id}${query}`;
+  }
+
+  // youtube.com/shorts/<id>
+  m = trimmed.match(/^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\/([A-Za-z0-9_-]{6,})(\?[^#]*)?(#.*)?$/i);
+  if (m) {
+    return `https://www.youtube.com/embed/${m[1]}${m[2] || ''}`;
+  }
+
+  // youtube.com/watch?v=<id>&...
+  m = trimmed.match(/^https?:\/\/(?:www\.|m\.)?youtube\.com\/watch\?([^#]*)(#.*)?$/i);
+  if (m) {
+    const params = new URLSearchParams(m[1]);
+    const id = params.get('v');
+    if (!id) return trimmed;
+    params.delete('v');
+    const rest = params.toString();
+    return `https://www.youtube.com/embed/${id}${rest ? `?${rest}` : ''}`;
+  }
+
+  return trimmed;
 }
 
 function formatHtmlAttribute(name, value) {

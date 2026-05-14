@@ -530,6 +530,10 @@ function buildHtmlAttributes(tag, attrs) {
     if (attrs.lazyLoadVideo) html += ` data-video-lazy="true"`;
   }
 
+  if (tag === 'iframe' && attrs.src) {
+    html += ` src="${escAttr(toYoutubeEmbed(attrs.src))}"`;
+  }
+
   if (tag === 'form' && attrs.formAttributes) {
     const fa = attrs.formAttributes;
     html += ` method="${escAttr(fa.method || 'get')}"`;
@@ -643,6 +647,34 @@ function deduplicateCss(cssText) {
 function escAttr(s) {
   if (s == null) return '';
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function toYoutubeEmbed(url) {
+  if (!url || typeof url !== 'string') return url;
+  const trimmed = url.trim();
+  if (/^https?:\/\/(?:www\.)?youtube(?:-nocookie)?\.com\/embed\//i.test(trimmed)) return trimmed;
+
+  let m = trimmed.match(/^https?:\/\/youtu\.be\/([A-Za-z0-9_-]{6,})(\?[^#]*)?(#.*)?$/i);
+  if (m) {
+    return `https://www.youtube.com/embed/${m[1]}${m[2] || ''}`;
+  }
+
+  m = trimmed.match(/^https?:\/\/(?:www\.|m\.)?youtube\.com\/shorts\/([A-Za-z0-9_-]{6,})(\?[^#]*)?(#.*)?$/i);
+  if (m) {
+    return `https://www.youtube.com/embed/${m[1]}${m[2] || ''}`;
+  }
+
+  m = trimmed.match(/^https?:\/\/(?:www\.|m\.)?youtube\.com\/watch\?([^#]*)(#.*)?$/i);
+  if (m) {
+    const params = new URLSearchParams(m[1]);
+    const id = params.get('v');
+    if (!id) return trimmed;
+    params.delete('v');
+    const rest = params.toString();
+    return `https://www.youtube.com/embed/${id}${rest ? `?${rest}` : ''}`;
+  }
+
+  return trimmed;
 }
 
 function unescapeHtml(s) {
