@@ -29,6 +29,11 @@ Example:
 | `{{POST_ID}}` | Current post ID |
 | `{{POST_TITLE}}` | Current post title |
 | `{{POST_EXCERPT}}` | Current post excerpt |
+| `{{POST_CONTENT}}` | Current post content |
+| `{{NEXT_POST_LINK}}` | Next post link |
+| `{{PREVIOUS_POST_LINK}}` | Previous post link |
+| `{{NEXT_POST_TITLE}}` | Next post title |
+| `{{PREVIOUS_POST_TITLE}}` | Previous post title |
 | `{{POST_URL}}` | Current post URL |
 | `{{POST_DATE}}` | Current post publish date |
 | `{{POST_DATE_MODIFIED}}` | Current post last modified date |

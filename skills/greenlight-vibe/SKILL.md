@@ -136,3 +136,111 @@ Make the requested changes in the HTML/CSS/JS produced by the deconverter. After
 ### Step 4: Replace the full original block content
 
 Return the full updated Greenshift block code and use it as a complete replacement for the original block content. Do not return only a diff or partial fragment. Keep unchanged blocks and attributes as they were unless they must change to support the requested update.
+
+## Agentic Export to WordPress Site with Greenshift/GreenLight Blocks
+
+If user asked you to export html code to wordpress site, use next steps:
+
+### Step 1: Confirm connection to WordPress site
+
+Before converting HTML to blocks or writing anything to a WordPress site, you **must** confirm a working connection to the target site. Do **not** proceed (no conversion, no publishing) until **one** of the following is true:
+
+1.  **REST API with application password** — the user has provided all of:
+    
+    -   the **site URL** (e.g. `https://example.com`),
+    -   a **WordPress login (username)**, and
+    -   an **application password** (Users → Profile → Application Passwords),
+    
+    _and_ you have verified the connection works. Test it, for example:
+    
+    ```bash
+    curl -sf -u "LOGIN:APP_PASSWORD" "https://example.com/wp-json/wp/v2/users/me"
+    ```
+    
+    A `200` response with the expected user means the connection is good. A `401`/`403` means the credentials are wrong — ask the user to re-check.
+    
+2.  **WP-CLI** — you can reach the site through WP-CLI instead. Verify with, for example:
+    
+    ```bash
+    wp option get siteurl   # (add --path / --ssh / --url as needed for the target site)
+    ```
+    
+
+If neither path is available, **ask the user** for the missing site URL, login, and application password (or WP-CLI access) and **stop**. Never generate blocks or push content to a site whose connection has not been confirmed.
+
+### Step 2: Publish the block content
+
+Create or update the page/post/template with the generated Greenshift block code as its `content` (REST: `POST /wp-json/wp/v2/{pages|posts}`, or WP-CLI `wp post create` / `wp post update`).
+
+### Step 3 (optional): Sync CSS variables and fonts to GreenShift settings
+
+-   **Export CSS variables** — when the user asks to register the design's CSS custom properties as GreenShift global variables.
+-   **Export fonts** — when the HTML pulls in Google Fonts (a `<link href="...fonts.googleapis.com/css...">`) and the user wants them saved into GreenShift settings (so you can also drop the `<link>` from the exported code and rely on the locally-hosted fonts).
+
+Both write to the same GreenShift settings endpoint (Basic auth with the application password, exactly as in Step 1):
+
+| Action | Method & path |
+| --- | --- |
+| Read current settings (always read before writing) | GET /wp-json/greenshift/v1/figma_settings → { "settings": { "colours": {...}, "elements": {...}, "figma_fonts": [...], ... } } |
+| Write settings | POST /wp-json/greenshift/v1/figma_settings (JSON body) |
+
+```bash
+# Read existing settings first so you don't clobber colours / elements / existing fonts
+curl -sf -u "LOGIN:APP_PASSWORD" "https://example.com/wp-json/greenshift/v1/figma_settings"
+```
+
+#### Prepare CSS variables
+
+1.  Take the CSS from the design's `<style>` tags and extract custom properties declared in `:root`, `body`, or `html` rules only — match `--name: value;` pairs (e.g. `--primary-color: #333333`).
+    
+2.  Map each one into a GreenShift variable object:
+    
+    ```json
+    {
+      "variable": "--primary-color",
+      "variable_value": "#333333",
+      "label": "primary-color",
+      "value": "var(--primary-color)",
+      "group": "imported"
+    }
+    ```
+    
+    -   `variable` = the raw `--name`; `variable_value` = the literal value; `label` = name without the leading `--`; `value` = `var(--name)`; `group` = `"imported"`.
+3.  POST them (variables are replaced wholesale — no read-merge needed):
+    
+    ```bash
+    curl -sf -u "LOGIN:APP_PASSWORD" -H "Content-Type: application/json" \
+      -d '{"variables":[{"variable":"--primary-color","variable_value":"#333333","label":"primary-color","value":"var(--primary-color)","group":"imported"}]}' \
+      "https://example.com/wp-json/greenshift/v1/figma_settings"
+    ```
+    
+
+#### Prepare fonts
+
+1.  Find the Google Fonts `<link>` in the HTML and fetch its CSS (the `https://fonts.googleapis.com/css2?...` URL). Parse each `@font-face` block for `font-family`, `font-weight`, `font-style`, and the `src` `url(...)`.
+    
+2.  Build one entry per (family, weight, italic) combo. Convert the numeric weight to a style name, and append `Italic` when `font-style: italic`:
+    
+    | weight | style |  | weight | style |
+    | --- | --- | --- | --- | --- |
+    | 100 | Thin |  | 500 | Medium |
+    | 200 | Extra Light |  | 600 | Semi Bold |
+    | 300 | Light |  | 700 | Bold |
+    | 400 | Regular |  | 800 | Extra Bold |
+    |  |  |  | 900 | Black |
+    
+    Each entry is:
+    
+    ```json
+    { "fontFamily": "Roboto", "fontStyle": "Bold Italic", "fontFile": "https://fonts.gstatic.com/s/roboto/v32/...woff2" }
+    ```
+    
+3.  **Read-merge-write:** GET the current settings, start from the existing `figma_fonts` array, append only entries whose `fontFamily::fontStyle` key is not already present (de-dupe), and POST the merged array back **together with the existing `colours` and `elements`** so they aren't lost:
+    
+    ```bash
+    curl -sf -u "LOGIN:APP_PASSWORD" -H "Content-Type: application/json" \
+      -d '{"colours":{},"elements":{},"figma_fonts":[{"fontFamily":"Roboto","fontStyle":"Regular","fontFile":"https://fonts.gstatic.com/s/roboto/v32/....woff2"},{"fontFamily":"Roboto","fontStyle":"Bold","fontFile":"https://fonts.gstatic.com/s/roboto/v32/....woff2"}]}' \
+      "https://example.com/wp-json/greenshift/v1/figma_settings"
+    ```
+    
+    The GreenShift plugin downloads the font files server-side into `/uploads/GreenShift/` and generates the `localfont` / `localfontcss` settings. After the fonts are saved on the site, you can remove the Google Fonts `<link>` tag from the exported block code.
