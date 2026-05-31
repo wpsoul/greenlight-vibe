@@ -168,79 +168,40 @@ Before converting HTML to blocks or writing anything to a WordPress site, you **
 
 If neither path is available, **ask the user** for the missing site URL, login, and application password (or WP-CLI access) and **stop**. Never generate blocks or push content to a site whose connection has not been confirmed.
 
-### Step 2: Publish the block content
+### Step 2: Convert HTML to Greenshift blocks
+
+Use the normal HTML-to-block conversion workflow to generate the Greenshift block code from the provided HTML design as described in the previous sections.
+
+### Step 3: Prepare CSS for frontend rendering
+
+If you export to pages or post types, prepare all CSS styles of page as single CSS string. You will use it in custom post meta `_gspb_post_css`. If you export to pattern, template part or template, add `"CSSRender": "1"` to every block that has a `styleAttributes` attribute or a `dynamicGClasses` attribute. This tells the PHP renderer to output the CSS inline on the frontend. Read `instructions/validate-styles.md` for details on how to use CSSRender. Do not use CSSRender for blocks that will be saved in pages or posts — it's only needed for patterns, template parts, templates, theme's content hooks. For pages and posts (including custom post types), common CSS must be added as a single string in the `_gspb_post_css` meta field instead.
+
+### Step 4 (optional): Sync CSS variables and fonts to GreenShift settings
+
+If code has root variables or Google Fonts, you can sync them to GreenShift settings. See `instructions/global-settings.md`. This step is optional but can help make the design more editable in the GreenShift editor after export.
+
+### Step 5: Publish the block content and CSS (optional)
 
 Create or update the page/post/template with the generated Greenshift block code as its `content` (REST: `POST /wp-json/wp/v2/{pages|posts}`, or WP-CLI `wp post create` / `wp post update`).
 
-### Step 3 (optional): Sync CSS variables and fonts to GreenShift settings
+If you have a CSS string from Step 3, save it in the `_gspb_post_css` meta field of the same page/post using **one** of these:
 
--   **Export CSS variables** — when the user asks to register the design's CSS custom properties as GreenShift global variables.
--   **Export fonts** — when the HTML pulls in Google Fonts (a `<link href="...fonts.googleapis.com/css...">`) and the user wants them saved into GreenShift settings (so you can also drop the `<link>` from the exported code and rely on the locally-hosted fonts).
+- **Plugin-native endpoint (preferred):**
 
-Both write to the same GreenShift settings endpoint (Basic auth with the application password, exactly as in Step 1):
-
-| Action | Method & path |
-| --- | --- |
-| Read current settings (always read before writing) | GET /wp-json/greenshift/v1/figma_settings → { "settings": { "colours": {...}, "elements": {...}, "figma_fonts": [...], ... } } |
-| Write settings | POST /wp-json/greenshift/v1/figma_settings (JSON body) |
-
-```bash
-# Read existing settings first so you don't clobber colours / elements / existing fonts
-curl -sf -u "LOGIN:APP_PASSWORD" "https://example.com/wp-json/greenshift/v1/figma_settings"
-```
-
-#### Prepare CSS variables
-
-1.  Take the CSS from the design's `<style>` tags and extract custom properties declared in `:root`, `body`, or `html` rules only — match `--name: value;` pairs (e.g. `--primary-color: #333333`).
-    
-2.  Map each one into a GreenShift variable object:
-    
-    ```json
-    {
-      "variable": "--primary-color",
-      "variable_value": "#333333",
-      "label": "primary-color",
-      "value": "var(--primary-color)",
-      "group": "imported"
-    }
-    ```
-    
-    -   `variable` = the raw `--name`; `variable_value` = the literal value; `label` = name without the leading `--`; `value` = `var(--name)`; `group` = `"imported"`.
-3.  POST them (variables are replaced wholesale — no read-merge needed):
-    
     ```bash
     curl -sf -u "LOGIN:APP_PASSWORD" -H "Content-Type: application/json" \
-      -d '{"variables":[{"variable":"--primary-color","variable_value":"#333333","label":"primary-color","value":"var(--primary-color)","group":"imported"}]}' \
-      "https://example.com/wp-json/greenshift/v1/figma_settings"
+        -d '{"id": 123, "css": "<css string>"}' \
+        "https://example.com/wp-json/greenshift/v1/css_settings"
     ```
-    
 
-#### Prepare fonts
+- **Core REST** — embed `meta` in the post payload (the meta is registered with `show_in_rest`, so this works on create or update):
 
-1.  Find the Google Fonts `<link>` in the HTML and fetch its CSS (the `https://fonts.googleapis.com/css2?...` URL). Parse each `@font-face` block for `font-family`, `font-weight`, `font-style`, and the `src` `url(...)`.
-    
-2.  Build one entry per (family, weight, italic) combo. Convert the numeric weight to a style name, and append `Italic` when `font-style: italic`:
-    
-    | weight | style |  | weight | style |
-    | --- | --- | --- | --- | --- |
-    | 100 | Thin |  | 500 | Medium |
-    | 200 | Extra Light |  | 600 | Semi Bold |
-    | 300 | Light |  | 700 | Bold |
-    | 400 | Regular |  | 800 | Extra Bold |
-    |  |  |  | 900 | Black |
-    
-    Each entry is:
-    
-    ```json
-    { "fontFamily": "Roboto", "fontStyle": "Bold Italic", "fontFile": "https://fonts.gstatic.com/s/roboto/v32/...woff2" }
-    ```
-    
-3.  **Read-merge-write:** GET the current settings, start from the existing `figma_fonts` array, append only entries whose `fontFamily::fontStyle` key is not already present (de-dupe), and POST the merged array back **together with the existing `colours` and `elements`** so they aren't lost:
-    
     ```bash
     curl -sf -u "LOGIN:APP_PASSWORD" -H "Content-Type: application/json" \
-      -d '{"colours":{},"elements":{},"figma_fonts":[{"fontFamily":"Roboto","fontStyle":"Regular","fontFile":"https://fonts.gstatic.com/s/roboto/v32/....woff2"},{"fontFamily":"Roboto","fontStyle":"Bold","fontFile":"https://fonts.gstatic.com/s/roboto/v32/....woff2"}]}' \
-      "https://example.com/wp-json/greenshift/v1/figma_settings"
+        -d '{"meta":{"_gspb_post_css":"<css string>"}}' \
+        "https://example.com/wp-json/wp/v2/pages/123"
     ```
-    
-    The GreenShift plugin downloads the font files server-side into `/uploads/GreenShift/` and generates the `localfont` / `localfontcss` settings. After the fonts are saved on the site, you can remove the Google Fonts `<link>` tag from the exported block code.
+
+- **WP-CLI:** `wp post meta update {id} _gspb_post_css "{css_string}"`
+
+Do **not** use `POST /wp-json/wp/v2/{pages|posts}/{id}/meta` — that route does not exist in WordPress core.
