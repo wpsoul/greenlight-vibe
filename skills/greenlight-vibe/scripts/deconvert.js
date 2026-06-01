@@ -407,12 +407,12 @@ function videoBlockToHtml(block, indent) {
     return `${indent}<video${htmlAttrs}>\n${childrenHtml}\n${indent}</video>`;
   }
 
-  if (src && attrs.lazyLoadVideo) {
-    return `${indent}<video${htmlAttrs}><source data-src="${escAttr(src)}" type="video/mp4" /></video>`;
-  }
-
+  // Emit `src` directly on the <video> element (clean HTML form). convert.js
+  // reads src from the <video> element — not a <source> child — so this is the
+  // shape that round-trips. lazyLoadVideo is already surfaced as
+  // data-video-lazy="true" by buildHtmlAttributes.
   if (src) {
-    return `${indent}<video${htmlAttrs}><source src="${escAttr(src)}" type="video/mp4" /></video>`;
+    return `${indent}<video${htmlAttrs} src="${escAttr(src)}"></video>`;
   }
 
   return `${indent}<video${htmlAttrs}></video>`;

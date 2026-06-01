@@ -172,19 +172,54 @@ If neither path is available, **ask the user** for the missing site URL, login, 
 
 Use the normal HTML-to-block conversion workflow to generate the Greenshift block code from the provided HTML design as described in the previous sections.
 
-### Step 3: Prepare CSS for frontend rendering
+### Step 3: Move custom scripts into a `wp:html` block
+
+The converter puts every `<script>` it finds into the **Style Manager block** as `customJs` with `customJsEnabled: true`. But on the frontend the renderer does **not** execute the inline `customJs` value — it loads the script from the `gspb_block_js` site option, keyed by the block's `id`. The converter does not assign an `id`, so an exported script **will not run** unless you also save it to that option *and* add a matching `id` to the block.
+
+For agentic export, do **not** rely on the site option. Instead move each script out of the block and into a `wp:html` block — WordPress outputs `wp:html` as raw HTML, so the `<script>` executes directly with no option write and no `id` required. This is what the GreenLight export feature does.
+
+If the converted blocks contain any `customJsEnabled: true` (the Style Manager block, and any element block that carries its own script), do this for each one:
+
+1. Take the `customJs` value and **unescape** it back into real JavaScript (the block attribute is JSON-escaped — turn `\n` into newlines, `\"` into `"`, `\\` into `\`).
+2. Replace every `{{PLUGIN_URL}}` placeholder with the real plugin URL `/wp-content/plugins/greenshift-animation-and-page-builder-blocks`. Raw `wp:html` output is **not** processed by PHP, so the placeholder is not resolved there (unlike option-stored scripts).
+3. Append a `wp:html` block at the **end** of the page content:
+
+```html
+<!-- wp:html -->
+<script data-wp-block-html="js">
+/* your script here */
+</script>
+<!-- /wp:html -->
+```
+
+   If the script uses `import` statements, add `type="module"`:
+
+```html
+<!-- wp:html -->
+<script type="module" data-wp-block-html="js">
+import gsap from '/wp-content/plugins/greenshift-animation-and-page-builder-blocks/libs/motion/gsap.js';
+/* ... */
+</script>
+<!-- /wp:html -->
+```
+
+4. **Remove** `customJs` and `customJsEnabled` from the original block, so the script is not left dangling on a block that can't run it.
+
+See `instructions/validate-scripts.md` for the full reference, including the WP-CLI / REST option-save alternatives — only use those if you specifically need the script to remain editable in the GreenShift editor.
+
+### Step 4: Prepare CSS for frontend rendering
 
 If you export to pages or post types, prepare all CSS styles of page as single CSS string. You will use it in custom post meta `_gspb_post_css`. If you export to pattern, template part or template, add `"CSSRender": "1"` to every block that has a `styleAttributes` attribute or a `dynamicGClasses` attribute. This tells the PHP renderer to output the CSS inline on the frontend. Read `instructions/validate-styles.md` for details on how to use CSSRender. Do not use CSSRender for blocks that will be saved in pages or posts — it's only needed for patterns, template parts, templates, theme's content hooks. For pages and posts (including custom post types), common CSS must be added as a single string in the `_gspb_post_css` meta field instead.
 
-### Step 4 (optional): Sync CSS variables and fonts to GreenShift settings
+### Step 5 (optional): Sync CSS variables and fonts to GreenShift settings
 
 If code has root variables or Google Fonts, you can sync them to GreenShift settings. See `instructions/global-settings.md`. This step is optional but can help make the design more editable in the GreenShift editor after export.
 
-### Step 5: Publish the block content and CSS (optional)
+### Step 6: Publish the block content and CSS (optional)
 
 Create or update the page/post/template with the generated Greenshift block code as its `content` (REST: `POST /wp-json/wp/v2/{pages|posts}`, or WP-CLI `wp post create` / `wp post update`).
 
-If you have a CSS string from Step 3, save it in the `_gspb_post_css` meta field of the same page/post using **one** of these:
+If you have a CSS string from Step 4, save it in the `_gspb_post_css` meta field of the same page/post using **one** of these:
 
 - **Plugin-native endpoint (preferred):**
 

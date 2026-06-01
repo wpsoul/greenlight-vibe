@@ -777,7 +777,9 @@ function convertNodeToBlock(node) {
     htmlAttrs += ` loading="lazy"`;
   }
   if (tag === 'video') {
-    if (params.src) htmlAttrs += ` src="${escHtml(params.src)}"`;
+    // NOTE: `src` is intentionally NOT emitted on the <video> tag. The block's
+    // save() renders it as a <source> child (built as mediaSourceHtml below),
+    // so putting src on <video> would break Gutenberg block validation.
     if (params.poster) htmlAttrs += ` poster="${escHtml(params.poster)}"`;
     if (params.loop) htmlAttrs += ` loop`;
     if (params.autoplay) htmlAttrs += ` autoplay`;
@@ -814,18 +816,36 @@ function convertNodeToBlock(node) {
   }
 
   // Build the block
+
+  // <video>/<audio> carry their src as a <source> child to match the block's
+  // save() output (Gutenberg validates the saved markup against save(), which
+  // renders <source src="..." type="video/<ext>"/>, not src on the media tag).
+  let mediaSourceHtml = '';
+  if ((tag === 'video' || tag === 'audio') && params.src) {
+    mediaSourceHtml = `<source src="${escHtml(params.src)}" type="${tag}/${getMediaExtension(params.src)}"/>`;
+  }
+
   if (VOID_TAGS.has(tag)) {
     return `<!-- wp:greenshift-blocks/element ${json} -->\n<${tag}${htmlAttrs}/>\n<!-- /wp:greenshift-blocks/element -->`;
   }
 
+  const innerHtml = mediaSourceHtml + innerBlocksStr;
   const textContent = params.textContent || '';
-  if (innerBlocksStr) {
-    return `<!-- wp:greenshift-blocks/element ${json} -->\n<${tag}${htmlAttrs}>${innerBlocksStr}</${tag}>\n<!-- /wp:greenshift-blocks/element -->`;
+  if (innerHtml) {
+    return `<!-- wp:greenshift-blocks/element ${json} -->\n<${tag}${htmlAttrs}>${innerHtml}</${tag}>\n<!-- /wp:greenshift-blocks/element -->`;
   } else if (textContent) {
     return `<!-- wp:greenshift-blocks/element ${json} -->\n<${tag}${htmlAttrs}>${escHtml(textContent)}</${tag}>\n<!-- /wp:greenshift-blocks/element -->`;
   } else {
     return `<!-- wp:greenshift-blocks/element ${json} -->\n<${tag}${htmlAttrs}></${tag}>\n<!-- /wp:greenshift-blocks/element -->`;
   }
+}
+
+// Mirrors the element block's save() getFileExtension so <source type="..."> matches.
+function getMediaExtension(url) {
+  if (!url) return '';
+  const path = url.split('/').pop();
+  const lastDotIndex = path.lastIndexOf('.');
+  return path.slice(lastDotIndex + 1);
 }
 
 function toYoutubeEmbed(url) {

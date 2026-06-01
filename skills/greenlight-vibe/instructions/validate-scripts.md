@@ -105,4 +105,4 @@ gsap.to('.el', {opacity: 1});
 3. Try Option A (WP-CLI `wp option update`)
 4. If WP-CLI is not available, try Option B (REST endpoint)
 5. If neither works, fall back to Option C (wp:html blocks) and remove `customJs`/`customJsEnabled` from the original blocks
-6. Keep `{{PLUGIN_URL}}` placeholders as-is — they are resolved at render time by PHP
+6. `{{PLUGIN_URL}}` placeholders: for Options A and B (option-stored scripts) keep them as-is — PHP resolves them at render time. For Option C (`wp:html`) you **must** replace them with the real plugin URL `/wp-content/plugins/greenshift-animation-and-page-builder-blocks`, because raw `wp:html` output is not processed by PHP
