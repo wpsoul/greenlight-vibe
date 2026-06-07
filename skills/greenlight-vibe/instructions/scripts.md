@@ -32,6 +32,7 @@ To add custom scripts to any Greenshift block, you need two parameters:
 2. **Use ES modules** - Import statements work
 3. **Check element existence** - Elements might not be in DOM yet
 4. **Avoid global namespace pollution** - Use IIFEs or modules
+5. **Never depend on the script for visibility** - Scripts do **not** run in the WordPress block editor. Do not hide a block with base CSS (`opacity:0`, `visibility:hidden`, `display:none`) and then reveal it with a script — the block would stay invisible while editing. Prefer CSS animations for entrance effects. If you must animate from a hidden state with JS, set that hidden state **inside the script** (e.g. `el.style.opacity='0'`) right before animating, so the block is still visible when the script does not run.
 
 ## JSON Escaping
 
@@ -42,9 +43,11 @@ When including JavaScript in JSON, escape:
 
 ### Multi-line Script Example
 
+Set the hidden start state inside the script (not in CSS), then animate to visible. This way the block stays visible if the script does not run — for example in the editor, where scripts are not executed.
+
 ```json
 {
-  "customJs": "import gsap from \"{{PLUGIN_URL}}/libs/motion/gsap.js\";\n\nconst el = document.querySelector('.my-class');\nif (el) {\n  gsap.to(el, { opacity: 1 });\n}",
+  "customJs": "import gsap from \"{{PLUGIN_URL}}/libs/motion/gsap.js\";\n\nconst el = document.querySelector('.my-class');\nif (el) {\n  gsap.set(el, { opacity: 0 });\n  gsap.to(el, { opacity: 1, duration: 0.6 });\n}",
   "customJsEnabled": true
 }
 ```
