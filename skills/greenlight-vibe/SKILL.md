@@ -28,6 +28,7 @@ Always build html first and use there best standards. But keep important rules
 11. Do not use js inline parameters like "onclick"
 12. Important!!! All styles add in section `<style data-wp-block-html="css">...</style>`. All scripts add in section `<script data-wp-block-html="js">...</script>`. But if you have `<link>` tags, keep them as they are. 
 13. **Never depend on a script for visibility.** Do not give a block a base/initial `opacity:0`, `visibility:hidden` or `display:none` and rely on JavaScript to reveal it. Custom block scripts (`customJs`) do **not** run in the WordPress block editor, so any block that needs a script to appear will be invisible and uneditable while editing. For entrance/reveal animations (fade-in, slide-in, scroll-triggered, etc.) use **CSS animations** — write `@keyframes` and the `animation` property in the `<style data-wp-block-html="css">` block (for scroll-triggered effects use `animation-timeline: view();` with `animation-range`). CSS animations run in both the editor and the frontend with no script. If a hidden→visible transition genuinely must be driven by JS, set the hidden start state **inside the script at runtime** (e.g. `el.style.opacity='0'` or `gsap.set(el,{opacity:0})` immediately before animating to the visible state), so the block stays visible whenever the script does not run.
+14. If you use custom font size for specific element, add also line height for this element.
 
 ***Important*** When you have centered content inside full width section, use next code for such sections. They must be most parent blocks on page
 
@@ -241,3 +242,5 @@ If you have a CSS string from Step 4, save it in the `_gspb_post_css` meta field
 - **WP-CLI:** `wp post meta update {id} _gspb_post_css "{css_string}"`
 
 Do **not** use `POST /wp-json/wp/v2/{pages|posts}/{id}/meta` — that route does not exist in WordPress core.
+
+If you export to specific page and you export full page content which has also hero section and heading, check if theme has Page without title template. If yes, use it for exported page.
