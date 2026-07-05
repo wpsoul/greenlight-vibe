@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "wpsoul-greenlight-vibe",
+  "version": "1.0.0",
+  "description": "Marketplace for the GreenLight Vibe plugin — convert HTML to WordPress Greenshift/GreenLight Gutenberg blocks",
+  "owner": {
+    "name": "WPsoul",
+    "url": "https://x.com/mr_igor_sanz"
+  },
+  "plugins": [
+    {
+      "name": "greenlight-vibe",
+      "description": "Generate WordPress Gutenberg blocks using Greenshift/GreenLight. Convert HTML to WordPress blocks, add charts, tables, dynamic content connected to WordPress query loops.",
+      "source": "./",
+      "category": "development"
+    }
+  ]
+}
