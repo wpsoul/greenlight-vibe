@@ -87,6 +87,8 @@ node scripts/convert.js input.html -o output.txt  # output to file
 cat input.html | node scripts/convert.js          # pipe from stdin
 ```
 
+**Very complex pages:** if the page has more than 10 full-screen sections, or the converted block code of a complex big page does not work correctly, skip per-element conversion and use the fallback described in "Fallback: Export a very complex page as a single HTML block" below.
+
 ### Step 3: Fit to inner variable system
 
 Check if we have some values in styles that matches or close to one of our existed variables. If yes, replace value with variable and fallback
@@ -105,6 +107,49 @@ If you add code as content and save it in wordpress site, read and follow `instr
 - No explanations or surrounding text
 - **No HTML comments** - WordPress strips them; use `metadata:{"name":"..."}` for adding relevant titles to blocks.
 - Ready to paste directly into WordPress Gutenberg code editor
+
+
+## Fallback: Export a very complex page as a single HTML block
+
+Use this mode **instead of** the normal per-element conversion when **either**:
+
+- the page is very complex — more than **10 full-screen sections**, or
+- something is not working after exporting a complex big page as blocks (converter output breaks, blocks fail to validate in Gutenberg, editor becomes slow/unresponsive, layout or scripts break after export).
+
+In this mode do **not** convert every element to a block. Put the whole page into **one** `greenshift-blocks/element` block with `type: "html"`, dividing the code into three parts: HTML → `textContent`, CSS → `styleAttributes.customCSS_Extra`, JS → `customJs`.
+
+### Format
+
+```html
+<!-- wp:greenshift-blocks/element {"id":"gsbp-0465cc0","textContent":"\u003cdiv\u003e...Custom HTML\u003c/div\u003e","type":"html","localId":"gsbp-0465cc0","align":"full","styleAttributes":{"customCSS_Extra":".css{color:red}"},"customJs":"console.log();","customJsEnabled":true} -->
+<div class="gsbp-0465cc0 alignfull"><div>...Custom HTML</div></div>
+<!-- /wp:greenshift-blocks/element -->
+```
+
+### Rules
+
+1. Generate one unique block id like `gsbp-0465cc0` and use the same value for `id`, `localId` and the wrapper class.
+2. **`textContent`** — the full page body HTML (everything except `<style>` and `<script>` tags), JSON-escaped for the block comment the same way Gutenberg does: backslash → `\\`, `"` → `\u0022`, `<` → `\u003c`, `>` → `\u003e`, `&` → `\u0026`, `--` → `\u002d\u002d`, newline → `\n`. Never leave raw `<`, `>`, `"` or `--` inside the JSON of the block comment — they can break block parsing.
+3. The saved markup between the block comments must be the wrapper `<div class="gsbp-XXXXXXX alignfull">` containing the **same HTML, unescaped**.
+4. **CSS** — all page CSS as one string of **regular raw CSS** in `styleAttributes.customCSS_Extra` (JSON-escaped the same way; no conversion to structured styleAttributes rules). Keep `"align":"full"` and the `alignfull` wrapper class; keep the `wp-section` / `wp-content-wrap` structure from Step 1 inside the HTML for centered content.
+5. **JS** — all page JS as a single string in `customJs`, with `"customJsEnabled": true`.
+6. All Step 1 rules still apply (unique class prefixes, no `:root` variables, no body styles, no visibility that depends on JS, etc.).
+
+### Frontend rendering in this mode
+
+- `textContent` is served as the saved raw HTML — nothing extra is needed for the markup.
+- `customCSS_Extra` is **not** a structured styleAttributes rule — it is regular **raw CSS**, output as-is with no processing. Write it exactly as you would write a stylesheet (full selectors, media queries, keyframes all allowed). The only transformation is the optional `{CURRENT}` placeholder, which is replaced with the block's own selector. If the user pastes the code into the Gutenberg code editor manually and saves, the editor generates the frontend page CSS itself. For agentic export to pages/posts, include this raw CSS in the `_gspb_post_css` meta string; for patterns, template parts and templates add `"CSSRender":"1"` to the block.
+- On the frontend `customJs` is **not** executed from the attribute — it is loaded from the `gspb_block_js` site option keyed by the block `id`. Saving the page in the Gutenberg editor with GreenShift active stores it there automatically. For **agentic export** (REST/WP-CLI, where the editor never opens) do one of the following:
+
+  - save the script to the option via the plugin endpoint (requires an admin-level application password):
+
+    ```bash
+    curl -sf -u "LOGIN:APP_PASSWORD" -H "Content-Type: application/json" \
+        -d '{"js":[{"gsbp-0465cc0":"console.log();"}]}' \
+        "https://example.com/wp-json/greenshift/v1/update-custom-js"
+    ```
+
+  - or follow Step 3 of the agentic export workflow: move the script into a `wp:html` block at the end of the content and remove `customJs`/`customJsEnabled` from the element block.
 
 
 ## Workflow to edit existing design of page that is made with greenshift-blocks
